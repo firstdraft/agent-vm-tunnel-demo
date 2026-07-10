@@ -30,20 +30,13 @@ Run the same checks as CI with:
 bin/ci
 ```
 
-## Local tunnel-gem integration
+## Codex Cloud tunnel integration
 
-The normal `Gemfile` and CI are standalone. `Gemfile.tunnel` is the isolated
-integration point for dogfooding a sibling checkout without committing a path
-dependency:
-
-```bash
-BUNDLE_GEMFILE=Gemfile.tunnel AGENT_VM_TUNNEL_PATH=../agent_vm_tunnel bundle install
-BUNDLE_GEMFILE=Gemfile.tunnel AGENT_VM_TUNNEL_PATH=../agent_vm_tunnel bin/dev
-```
-
-Its generated `Gemfile.tunnel.lock` is ignored. The demo contains no
-provider-specific setup scripts or hooks; connector lifecycle belongs to the
-`agent_vm_tunnel` gem.
+The app dogfoods `agent_vm_tunnel` from its public main branch until the gem is
+released. The committed connector was generated with `--provider=codex`; Codex
+Cloud runs `bash cloud-vm-setup.sh` for setup and
+`bin/agent-vm-tunnel ensure` for maintenance. Tunnel credentials remain in the
+Cloud environment and are never committed.
 
 The WebSocket smoke test deliberately relies on Rails' exact same-origin check.
 Do not add wildcard preview origins.

@@ -15,6 +15,9 @@ gem "turbo-rails"
 # Hotwire's modest JavaScript framework [https://stimulus.hotwired.dev]
 gem "stimulus-rails"
 
+# Dogfood the connector from its public main branch until it is released.
+gem "agent_vm_tunnel", github: "firstdraft/agent_vm_tunnel", branch: "main"
+
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 

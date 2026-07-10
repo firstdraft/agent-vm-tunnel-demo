@@ -12,8 +12,8 @@ a live update?
 - Keep Action Cable's exact same-origin protection; never allow wildcard sibling
   origins.
 - Keep mutations CSRF-protected, tightly body-limited, and rate-limited.
-- Keep the ordinary `Gemfile` standalone. Local tunnel work belongs in
-  `Gemfile.tunnel` until a released gem replaces that integration seam.
+- Keep the tunnel integration installed through `agent_vm_tunnel`; do not copy
+  its runtime logic or add provider hooks by hand.
 - Add focused tests for behavior and security invariants with every change.
 
 Run `bin/ci` before committing. It performs setup, style checks, dependency and

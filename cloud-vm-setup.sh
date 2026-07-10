@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# Prepare a cloud development environment for agent_vm_tunnel.
+# Provider-specific behavior is selected explicitly by the generator; common
+# setup remains usable in Claude Cloud, Codex Cloud, and generic Linux VMs.
+set -euo pipefail
+
+PROVIDER="codex"
+ROOT="$(cd "$(dirname "$0")" && pwd)"; cd "$ROOT"
+RUNTIME_DIR="$ROOT/tmp/agent-vm-tunnel/setup"
+mkdir -p "$RUNTIME_DIR"
+
+RUBY_VERSION="$(sed -n '1{s/^ruby-//;s/[[:space:]]//g;p;}' .ruby-version 2>/dev/null || true)"
+[ -n "$RUBY_VERSION" ] || { echo "cloud-vm-setup: .ruby-version is required" >&2; exit 1; }
+
+use_exact_ruby() {
+  local candidate current prefix
+  candidate="/opt/hostedtoolcache/Ruby/$RUBY_VERSION/x64/bin/ruby"
+  if [ -x "$candidate" ]; then export PATH="$(dirname "$candidate"):$PATH"; return 0; fi
+  if command -v ruby >/dev/null 2>&1; then
+    current="$(ruby -e 'print RUBY_VERSION' 2>/dev/null || true)"
+    [ "$current" = "$RUBY_VERSION" ] && return 0
+  fi
+  if command -v asdf >/dev/null 2>&1; then
+    ASDF_RUBY_VERSION="$RUBY_VERSION" asdf install ruby "$RUBY_VERSION"
+    prefix="$(ASDF_RUBY_VERSION="$RUBY_VERSION" asdf where ruby)"
+    export PATH="$prefix/bin:$PATH"; return 0
+  fi
+  if command -v mise >/dev/null 2>&1; then
+    mise install "ruby@$RUBY_VERSION"
+    prefix="$(mise where "ruby@$RUBY_VERSION")"
+    export PATH="$prefix/bin:$PATH"; return 0
+  fi
+  return 1
+}
+
+install_claude_ruby() {
+  [ "$PROVIDER" = claude ] || return 1
+  [ "$(uname -m)" = x86_64 ] || { echo "cloud-vm-setup: Claude ruby-builder fallback supports x86_64 only" >&2; return 1; }
+  local prefix archive tmp actual
+  prefix="/opt/hostedtoolcache/Ruby/$RUBY_VERSION"
+  [ -w /opt ] || [ -w /opt/hostedtoolcache ] || { echo "cloud-vm-setup: cannot write /opt/hostedtoolcache" >&2; return 1; }
+  mkdir -p "$prefix"
+  archive="ruby-${RUBY_VERSION}-ubuntu-24.04-x64.tar.gz"
+  tmp="$RUNTIME_DIR/$archive"
+  curl --proto '=https' --tlsv1.2 -fsSL --retry 3 --connect-timeout 10 --max-time 180 \
+    "https://github.com/ruby/ruby-builder/releases/download/ruby-${RUBY_VERSION}/${archive}" -o "$tmp"
+  if [ -n "${AGENT_VM_TUNNEL_RUBY_SHA256:-}" ]; then
+    actual="$(sha256sum "$tmp" | awk '{print $1}')"
+    [ "$actual" = "$AGENT_VM_TUNNEL_RUBY_SHA256" ] || { echo "cloud-vm-setup: Ruby archive checksum mismatch" >&2; return 1; }
+  else
+    echo "cloud-vm-setup: Ruby archive is TLS-pinned by version but has no upstream checksum manifest; set AGENT_VM_TUNNEL_RUBY_SHA256 to require one." >&2
+  fi
+  tar -tzf "$tmp" >/dev/null
+  tar --no-same-owner -xzf "$tmp" -C "$prefix"
+  rm -f "$tmp"
+  export PATH="$prefix/x64/bin:$PATH"
+}
+
+use_exact_ruby || { install_claude_ruby && use_exact_ruby; } || {
+  echo "cloud-vm-setup: Ruby $RUBY_VERSION is unavailable. Codex/generic targets require Ruby on PATH, asdf, or mise." >&2
+  exit 1
+}
+[ "$(ruby -e 'print RUBY_VERSION')" = "$RUBY_VERSION" ] || { echo "cloud-vm-setup: selected the wrong Ruby" >&2; exit 1; }
+ruby --version
+
+detect_db_adapter() {
+  if [ -n "${DATABASE_ADAPTER:-}" ]; then printf '%s\n' "$DATABASE_ADAPTER"; return; fi
+  local adapter
+  adapter="$(ruby -rerb -ryaml -e '
+    begin
+      data = YAML.safe_load(ERB.new(File.read("config/database.yml")).result, aliases: true) || {}
+      value = data[ENV.fetch("RAILS_ENV", "development")]
+      puts(value["adapter"] || value[:adapter]) if value.respond_to?(:[])
+    rescue StandardError
+    end
+  ' 2>/dev/null | head -n1)"
+  if [ -n "$adapter" ]; then printf '%s\n' "$adapter"; return; fi
+  awk '
+    /^DEPENDENCIES$/ { dependencies=1; next }
+    dependencies && /^  (pg|mysql2|trilogy|sqlite3)( |$)/ { gsub(/[ (].*/, "", $1); print $1; exit }
+  ' Gemfile.lock 2>/dev/null
+}
+
+apt_install() {
+  if [ "$(id -u)" -eq 0 ]; then apt-get update -qq; apt-get install -y -qq "$@"
+  elif command -v sudo >/dev/null 2>&1; then sudo -n apt-get update -qq; sudo -n apt-get install -y -qq "$@"
+  else echo "cloud-vm-setup: need root/sudo to install database packages: $*" >&2; return 1; fi
+}
+
+DB_ADAPTER="$(detect_db_adapter)"
+case "$DB_ADAPTER" in
+  postgresql|postgres|pg)
+    command -v pg_isready >/dev/null 2>&1 || apt_install postgresql libpq-dev
+    (service postgresql start || sudo -n service postgresql start) >/dev/null 2>&1
+    for _ in {1..100}; do pg_isready -q && break; sleep 0.1; done
+    pg_isready -q || { echo "cloud-vm-setup: PostgreSQL did not become ready" >&2; exit 1; }
+    if [ "$(id -u)" -eq 0 ]; then su - postgres -c "createuser -s root" 2>/dev/null || true; fi
+    ;;
+  mysql|mysql2|trilogy)
+    command -v mysqladmin >/dev/null 2>&1 || apt_install mariadb-server libmariadb-dev
+    (service mariadb start || sudo -n service mariadb start) >/dev/null 2>&1
+    for _ in {1..100}; do mysqladmin ping -s >/dev/null 2>&1 && break; sleep 0.1; done
+    mysqladmin ping -s >/dev/null 2>&1 || { echo "cloud-vm-setup: MariaDB did not become ready" >&2; exit 1; }
+    ;;
+  sqlite|sqlite3|"") ;;
+  *) echo "cloud-vm-setup: unsupported database adapter '$DB_ADAPTER'; set DATABASE_ADAPTER or extend this script" >&2; exit 1 ;;
+esac
+
+bundle install
+bin/rails db:prepare
+
+if [ -f package.json ]; then
+  if [ -f pnpm-lock.yaml ] || grep -q '"packageManager"[[:space:]]*:[[:space:]]*"pnpm@' package.json; then
+    if command -v pnpm >/dev/null 2>&1; then pnpm install --frozen-lockfile
+    elif command -v corepack >/dev/null 2>&1; then corepack pnpm install --frozen-lockfile
+    else echo "cloud-vm-setup: pnpm project but pnpm/corepack is unavailable" >&2; exit 1; fi
+  elif [ -f yarn.lock ] || grep -q '"packageManager"[[:space:]]*:[[:space:]]*"yarn@' package.json; then
+    if command -v yarn >/dev/null 2>&1; then YARN=(yarn)
+    elif command -v corepack >/dev/null 2>&1; then YARN=(corepack yarn)
+    else echo "cloud-vm-setup: Yarn project but yarn/corepack is unavailable" >&2; exit 1; fi
+    yarn_major="$("${YARN[@]}" --version | cut -d. -f1)"
+    if [ "$yarn_major" -ge 2 ]; then "${YARN[@]}" install --immutable
+    else "${YARN[@]}" install --frozen-lockfile; fi
+  elif [ -f bun.lock ] || [ -f bun.lockb ] || grep -q '"packageManager"[[:space:]]*:[[:space:]]*"bun@' package.json; then
+    command -v bun >/dev/null 2>&1 || { echo "cloud-vm-setup: Bun project but bun is unavailable" >&2; exit 1; }
+    bun install --frozen-lockfile
+  elif [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+    npm ci --no-audit --no-fund
+  else
+    npm install --no-audit --no-fund
+  fi
+fi
+
+cat <<EOF
+
+Cloud environment ready for provider: $PROVIDER
+  Setup command:       bash cloud-vm-setup.sh
+  Maintenance command: bin/agent-vm-tunnel ensure
+  Status command:      bin/agent-vm-tunnel status
+
+Set AGENT_VM_TUNNEL=N:password in the cloud environment. The maintenance
+command installs a checksum-verified chisel client in this project's tmp tree,
+starts only project-owned processes, and reconciles changed credentials.
+EOF
