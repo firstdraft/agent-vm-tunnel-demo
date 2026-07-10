@@ -42,8 +42,8 @@ repository can validate both cloud products:
   session/prompt recovery.
 
 The provider setup forms are different. Follow the gem's
-[Codex Cloud guide](https://github.com/firstdraft/agent_vm_tunnel/blob/main/docs/providers/codex-cloud.md)
-or [Claude guide](https://github.com/firstdraft/agent_vm_tunnel/blob/main/docs/providers/claude-code.md).
+[Codex Cloud guide](https://firstdraft.github.io/agent_vm_tunnel/providers/codex-cloud.html)
+or [Claude guide](https://firstdraft.github.io/agent_vm_tunnel/providers/claude-code.html).
 Tunnel credentials remain in each cloud environment and are never committed.
 Give Codex and Claude separate dashboard previews if both environments may be
 running at once.
