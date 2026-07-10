@@ -50,3 +50,7 @@ running at once.
 
 The WebSocket smoke test deliberately relies on Rails' exact same-origin check.
 Do not add wildcard preview origins.
+
+## License
+
+Released under the [MIT License](LICENSE). Copyright (c) 2026 FIRSTDRAFT LLC.
