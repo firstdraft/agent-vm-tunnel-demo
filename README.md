@@ -30,13 +30,23 @@ Run the same checks as CI with:
 bin/ci
 ```
 
-## Codex Cloud tunnel integration
+## Codex and Claude tunnel integration
 
 The app dogfoods `agent_vm_tunnel` from its public main branch until the gem is
-released. The committed connector was generated with `--provider=codex`; Codex
-Cloud runs `bash cloud-vm-setup.sh` for setup and
-`bin/agent-vm-tunnel ensure` for maintenance. Tunnel credentials remain in the
-Cloud environment and are never committed.
+released. The committed connector was generated with `--provider=both` so one
+repository can validate both cloud products:
+
+- Codex Cloud runs `bash cloud-vm-setup.sh` for setup and
+  `bin/agent-vm-tunnel ensure` for maintenance.
+- Claude uses the same setup script and the generated repository hooks for
+  session/prompt recovery.
+
+The provider setup forms are different. Follow the gem's
+[Codex Cloud guide](https://github.com/firstdraft/agent_vm_tunnel/blob/main/docs/providers/codex-cloud.md)
+or [Claude guide](https://github.com/firstdraft/agent_vm_tunnel/blob/main/docs/providers/claude-code.md).
+Tunnel credentials remain in each cloud environment and are never committed.
+Give Codex and Claude separate dashboard previews if both environments may be
+running at once.
 
 The WebSocket smoke test deliberately relies on Rails' exact same-origin check.
 Do not add wildcard preview origins.

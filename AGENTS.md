@@ -8,7 +8,9 @@ a live update?
 ## Guardrails
 
 - Do not add chats, uploads, authentication demos, or other stored user content.
-- Do not add provider-branded VM setup scripts, hooks, or tunnel credentials.
+- Do not hand-write provider lifecycle scripts or hooks. Generate supported
+  Codex and Claude integration through `agent_vm_tunnel`; never add tunnel
+  credentials to the repository.
 - Keep Action Cable's exact same-origin protection; never allow wildcard sibling
   origins.
 - Keep mutations CSRF-protected, tightly body-limited, and rate-limited.
@@ -18,3 +20,13 @@ a live update?
 
 Run `bin/ci` before committing. It performs setup, style checks, dependency and
 static security scans, Rails tests, and a seed smoke test.
+
+<!-- agent-vm-tunnel:codex:start -->
+## Live preview in Codex Cloud
+
+Before work that needs the running preview, run `bin/agent-vm-tunnel ensure`.
+Use `bin/agent-vm-tunnel status` to diagnose the app or tunnel, and read
+`tmp/agent-vm-tunnel/app.log` or `tmp/agent-vm-tunnel/tunnel.log` before
+changing configuration. Never commit `AGENT_VM_TUNNEL`; it belongs in the
+Codex Cloud environment variables.
+<!-- agent-vm-tunnel:codex:end -->
