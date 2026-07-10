@@ -2,6 +2,7 @@
 /.env*
 /.ruby-lsp
 /coverage
+/error.log
 /Gemfile.tunnel.lock
 /log/*
 /public/assets

@@ -1,7 +1,0 @@
-[2026-07-10T07:20:31.087362+00:00] startup: base_url=https://chatgpt.com/backend-api path_style=wham
-[2026-07-10T07:20:31.091295+00:00] auth: mode=ChatGPT account_id=17d83957-5504-4ed2-a398-6179e45b50f5
-[2026-07-10T07:20:31.091385+00:00] auth: set ChatGPT-Account-Id header: 17d83957-5504-4ed2-a398-6179e45b50f5
-[2026-07-10T07:20:31.108600+00:00] env: parsed HTTP GitHub origin => firstdraft/agent-vm-tunnel-demo
-[2026-07-10T07:20:32.565888+00:00] env: status=200 OK content-type=application/json
-[2026-07-10T07:20:32.852570+00:00] env: status=200 OK content-type=application/json
-[2026-07-10T07:20:35.136509+00:00] new_task: created id=task_e_6a509d41a7348320adc9d7df203d2dd7 env=6a509a87967481918fa22193f5130454 prompt_chars=429
