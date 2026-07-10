@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/firstdraft/agent_vm_tunnel.git
-  revision: 544c211723ad651be879ae1d6c99a847b3cbc578
+  revision: c0d3221323bf287627f20ff02a95dfced572436b
   branch: main
   specs:
     agent_vm_tunnel (0.1.0)
