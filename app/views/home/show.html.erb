@@ -1,0 +1,54 @@
+<% content_for :title, "Live Preview Smoke Test" %>
+
+<%= turbo_stream_from PreviewPulse::STREAM %>
+
+<main class="shell">
+  <header class="hero">
+    <p class="eyebrow">Agent VM Tunnel</p>
+    <h1>Live preview smoke test</h1>
+    <p class="lede">A provider-neutral target for checking proxied HTTP, secure forms, and WebSockets from an isolated development environment.</p>
+  </header>
+
+  <section class="grid" aria-label="Connection checks">
+    <article class="card">
+      <div class="card__heading">
+        <span class="step">1</span>
+        <div>
+          <p class="label">HTTP</p>
+          <h2>Page reached Rails</h2>
+        </div>
+      </div>
+
+      <dl class="facts">
+        <div><dt>URL</dt><dd><code><%= request.protocol %><%= request.host_with_port %></code></dd></div>
+        <div><dt>Request</dt><dd><code><%= request.request_id %></code></dd></div>
+        <div><dt>Boot</dt><dd><code><%= Rails.application.config.x.demo.boot_id %></code></dd></div>
+        <div><dt>Rendered</dt><dd><%= @rendered_at.utc.strftime("%Y-%m-%d %H:%M:%S UTC") %></dd></div>
+      </dl>
+
+      <div class="links">
+        <%= link_to "JSON health", health_path, class: "text-link" %>
+        <%= link_to "Framework check", rails_health_check_path, class: "text-link" %>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card__heading">
+        <span class="step">2</span>
+        <div>
+          <p class="label">WebSocket</p>
+          <h2>Broadcast a pulse</h2>
+        </div>
+      </div>
+
+      <%= render "live_status", pulse: @pulse %>
+
+      <%= button_to "Send test pulse", pulse_path, method: :post, class: "button" %>
+      <p class="fine-print">No text or user data is accepted. Pulses are limited to <%= PulsesController::RATE_LIMIT %> per minute per client.</p>
+    </article>
+  </section>
+
+  <footer>
+    Rails <%= Rails.version %> · Ruby <%= RUBY_VERSION %> · <span>same-origin WebSockets only</span>
+  </footer>
+</main>

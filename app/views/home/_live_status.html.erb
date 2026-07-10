@@ -1,0 +1,14 @@
+<section id="live_status" class="live-status" data-pulse-id="<%= pulse.id %>" aria-live="polite">
+  <span class="live-status__dot" aria-hidden="true"></span>
+  <div>
+    <% if pulse.sent? %>
+      <strong>WebSocket pulse received</strong>
+      <p>Pulse <code><%= pulse.id %></code> arrived at
+        <time datetime="<%= pulse.sent_at.iso8601 %>"><%= pulse.sent_at.utc.strftime("%H:%M:%S.%L UTC") %></time>.
+      </p>
+    <% else %>
+      <strong>WebSocket listener ready</strong>
+      <p>Open a second tab, then send a pulse. Both tabs should update.</p>
+    <% end %>
+  </div>
+</section>

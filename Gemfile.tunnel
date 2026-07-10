@@ -1,0 +1,5 @@
+# Optional integration bundle for dogfooding the local tunnel gem without
+# coupling the demo's normal lockfile or CI checkout to a sibling repository.
+eval_gemfile "Gemfile"
+
+gem "agent_vm_tunnel", path: ENV.fetch("AGENT_VM_TUNNEL_PATH", "../agent_vm_tunnel")
